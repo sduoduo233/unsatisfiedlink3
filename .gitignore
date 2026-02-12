@@ -1,0 +1,4 @@
+uploads
+uploads_tmp
+.vscode
+db.sqlite

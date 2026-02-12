@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unsatisfiedlink.com - End-to-end encrypted file transfer</title>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.8/js/bootstrap.bundle.min.js" integrity="sha512-HvOjJrdwNpDbkGJIG2ZNqDlVqMo77qbs4Me4cah0HoDrfhrbA+8SBlZn1KrvAQw7cILLPFJvdwIgphzQmMm+Pw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.8/css/bootstrap.min.css" integrity="sha512-2bBQCjcnw658Lho4nlXJcc6WkV/UxpE/sAokbXPxQNGqmNdQrWqtw26Ns9kFF/yG792pKR1Sx8/Y1Lf1XN4GKA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.13.1/font/bootstrap-icons.min.css" integrity="sha512-t7Few9xlddEmgd3oKZQahkNI4dS6l80+eGEzFQiqtyVYdvcSG2D3Iub77R20BdotfRPA9caaRkg1tyaJiPmO0g==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <script src="/writer.js"></script>
+</head>
+<body data-bs-theme="dark">
+
+<div class="d-flex align-items-center justify-content-center vh-100">
+    <div class="d-flex flex-column align-items-start">
+        <h1 class="">Unsatisfiedlink.com</h1>
+        <p class="lead">End-to-end encrypted file transfer</p>
+
+
+
+        <label>
+            <div class="card">
+                <div class="card-body d-flex flex-column align-items-center justify-content-center" style="width: 800px; height: 400px; max-width: 90vw; max-height: 40vh;">
+                    <span class="fs-1 text-muted" style="display: none;"><i class="bi bi-file-earmark"></i></span>
+                    <span class="fs-4 text-muted">Choose a file or drag it here</span>
+                </div>
+            </div>
+            
+            <input type="file" class="d-none" id="input" />
+        </label>
+
+        <label class="mt-3 w-100">
+            Auto Delete
+            <select class="form-select" aria-label="Auto delete">
+                <option value="50y">50 Years</option>
+                <option value="1y">1 Year</option>
+                <option value="1m">1 Month</option>
+                <option selected value="7d">7 Days</option>
+                <option value="3d">3 Days</option>
+                <option value="24h">24 Hours</option>
+                <option value="3h">3 Hours</option>
+                <option value="1h">1 Hour</option>
+            </select>
+        </label>
+
+        <button class="btn btn-primary mt-3" id="btn">Upload</button>
+
+        <div class="progress w-100 mt-3" role="progressbar" aria-label="Upload progress" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="display: none; height: 20px;">
+            <div class="progress-bar" style="width: 0%"></div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+
+$(function() {
+    /** @type {File | null} */
+    let file = null;
+
+    const $card = $(".card");
+    const $icon = $card.find("span").first();
+    const $label = $card.find("span").last();
+
+    function getIconClass(mimeType) {
+        if (!mimeType) return "bi-file-earmark";
+        if (mimeType === "application/pdf") return "bi-file-earmark-pdf";
+        if (mimeType.match(/^application\/(zip|x-zip|gzip|x-gzip|x-tar|x-bzip2|x-7z|x-rar|x-compress)/)) return "bi-file-earmark-zip";
+        if (mimeType.startsWith("video/") || mimeType.startsWith("audio/")) return "bi-file-earmark-play";
+        if (mimeType.startsWith("image/")) return "bi-file-earmark-image";
+        if (mimeType.startsWith("text/") || mimeType.match(/^application\/(json|xml|javascript|typescript)/)) return "bi-file-earmark-text";
+        return "bi-file-earmark";
+    }
+
+    function setFile(f) {
+        file = f;
+        $icon.show().removeClass("text-muted").find("i").attr("class", "bi " + getIconClass(f.type));
+        $label.removeClass("text-muted").text(f.name);
+    }
+
+    function clearFile() {
+        file = null;
+        $icon.hide().addClass("text-muted");
+        $label.addClass("text-muted").text("Choose a file or drag it here");
+    }
+
+    $("#input").on("change", function() {
+        if (uploading) return;
+        if ($("#input")[0].files[0]) {
+            setFile($("#input")[0].files[0]);
+        } else {
+            clearFile();
+        }
+    })
+
+    // drag and drop
+
+    let dragCounter = 0;
+
+    $(window).on("dragover", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    });
+
+    $(window).on("dragenter", function(e) {
+        e.preventDefault();
+        if (uploading) return;
+        dragCounter++;
+        $card.addClass("border border-primary border-3");
+    });
+
+    $(window).on("dragleave", function(e) {
+        e.preventDefault();
+        if (uploading) return;
+        dragCounter--;
+        if (dragCounter === 0) {
+            $card.removeClass("border border-primary border-3");
+        }
+    });
+
+    $(window).on("drop", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (uploading) return;
+        dragCounter = 0;
+        $card.removeClass("border border-primary border-3");
+        const dt = e.originalEvent.dataTransfer;
+        if (dt && dt.files && dt.files.length > 0) {
+            setFile(dt.files[0]);
+        }
+    });
+
+    // upload
+
+    let uploading = false;
+
+    $("#btn").on("click", async function() {
+        if (!file || uploading) return;
+        uploading = true;
+
+        // Hide controls and disable interactions
+        $("#btn").hide();
+        $(".form-select").closest("label").hide();
+        $("#input").prop("disabled", true);
+        $(".progress").show();
+
+        try {
+            const totalSize = file.size;
+            let uploaded = 0;
+
+            const w = new Writer();
+            await w.start(file.size, file.name, file.type);
+
+            for (let i = 0; i < file.size; i += 4096) {
+                const end = Math.min(file.size, i + 4096);
+                const data = await file.slice(i, end).bytes();
+                await w.write(data);
+                uploaded = end;
+                const pct = Math.round((uploaded / totalSize) * 100);
+                $(".progress-bar").css("width", pct + "%");
+                $(".progress").attr("aria-valuenow", pct);
+            }
+
+            await w.close();
+            $(".progress-bar").css("width", "100%");
+            $(".progress").attr("aria-valuenow", "100");
+
+            const url = "/download.html?" + w.filename + "#" + w.password;
+            console.log(url);
+
+        } catch (e) {
+            console.error(e);
+            alert("Error: upload failed");
+            uploading = false;
+            $("#btn").show();
+            $(".form-select").closest("label").show();
+            $("#input").prop("disabled", false);
+            clearFile();
+            $(".progress").hide();
+        }
+    });
+})
+
+</script>
+    
+</body>
+</html>
