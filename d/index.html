@@ -163,7 +163,8 @@ $(async function() {
 
             $("#preview").html($("<p>").text("Preview is unavailable for this file (" + r.mimetype + ").").addClass("text-muted"));
         
-            }
+        }
+        
     } catch (e) {
         console.error("Failed to load file metadata:", e);
         $("#spinner").remove();
