@@ -12,7 +12,8 @@ $db->exec("CREATE TABLE IF NOT EXISTS files (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     admin_password TEXT NOT NULL,
     finished_at DATETIME,
-    uploader_ip TEXT NOT NULL
+    uploader_ip TEXT NOT NULL,
+    expires_at DATETIME NOT NULL
 )");
 
 $db->enableExceptions(true);
@@ -58,7 +59,7 @@ function sqlite_exec($sql, $params = []) {
 }
 
 function random_string($length) {
-    $chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"; // not ambiguous characters from bitwarden
+    $chars = "ABCDEFHKLMNPQRSTUVWXYZabcdefhikmnopqrstuvwxyz23456789"; // not ambiguous characters from bitwarden
     $s = "";
     for ($i=0; $i < $length; $i++) { 
         $s = $s . $chars[random_int(0, strlen($chars) - 1)];

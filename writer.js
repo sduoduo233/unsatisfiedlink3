@@ -14,11 +14,14 @@ class Writer {
     /**
      * Generate password, create file and write metadata.
      */
-    async start(length, original_filename, mimetype) {
+    async start(length, original_filename, mimetype, expires) {
         // Create new file
 
+        const form = new FormData();
+        form.set("expires", expires);
         const resp = await fetch("/startupload.php", {
             method: "POST",
+            body: form
         });
 
         if (resp.status !== 200) {

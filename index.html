@@ -35,14 +35,13 @@
         <label class="mt-3 w-100">
             Auto Delete
             <select class="form-select" aria-label="Auto delete">
-                <option value="50 Years">50 Years</option>
-                <option value="1y">1 Year</option>
-                <option value="1m">1 Month</option>
-                <option selected value="7d">7 Days</option>
-                <option value="3d">3 Days</option>
-                <option value="24h">24 Hours</option>
-                <option value="3h">3 Hours</option>
-                <option value="1h">1 Hour</option>
+                <option value="50Y">50 Years</option>
+                <option value="1Y">1 Year</option>
+                <option value="1M">1 Month</option>
+                <option selected value="7D">7 Days</option>
+                <option value="24H">24 Hours</option>
+                <option value="3H">3 Hours</option>
+                <option value="1Min">1 Minute</option>
             </select>
         </label>
 
@@ -152,7 +151,7 @@ $(function() {
             let uploaded = 0;
 
             const w = new Writer();
-            await w.start(file.size, file.name, file.type);
+            await w.start(file.size, file.name, file.type, $(".form-select").val());
 
             for (let i = 0; i < file.size; i += 4096) {
                 const end = Math.min(file.size, i + 4096);
