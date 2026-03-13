@@ -230,46 +230,28 @@ async function handleRequest(request) {
             return new Response("Range Not Satisfiable", { status: 416 });
         }
 
-        let chunk = 0;
-
         return new Response(new ReadableStream({
             async pull(controller) {
 
                 try  {
 
-                    while (true) {
+                    let startChunkIdx = Math.floor(start / CHUNK_SIZE);
+                    let endChunkIdx = Math.floor(end / CHUNK_SIZE);
+
+                    for (let chunk = startChunkIdx; chunk <= endChunkIdx; chunk++) {
+                        const data = await r.readChunk(chunk);
                         const chunkStart = chunk * CHUNK_SIZE;
-                        const chunkEnd = Math.min((chunk + 1) * CHUNK_SIZE - 1, r.length - 1);
+                        const chunkEnd = chunkStart + CHUNK_SIZE;
 
-                        if (end < chunkStart || chunkEnd < start) {
-                            chunk++;
-                            if (chunk > r.totalChunks) {
-                                break;
-                            }
-                            continue;
-                        }
+                        const sliceStart = Math.max(start, chunkStart) - chunkStart;
+                        const sliceEnd = Math.min(end, chunkEnd) - chunkStart;
 
-                        break;
+                        controller.enqueue(data.slice(sliceStart, sliceEnd));
                     }
-
-                    const chunkStart = chunk * CHUNK_SIZE;
-                    const chunkEnd = Math.min((chunk + 1) * CHUNK_SIZE - 1, r.length - 1);
-
-                    if (chunk >= r.totalChunks) {
-                        controller.close();
-                        return;
-                    }
-
-                    const overlapStart = Math.max(chunkStart, start);
-                    const overlapEnd = Math.min(chunkEnd, end);
-
-                    const data = await r.readChunk(chunk);
-
-                    controller.enqueue(data.slice(overlapStart - chunkStart, overlapEnd - chunkStart));
 
                 } catch (e) {
                     console.error(e);
-                    // controller.error(e);
+                    controller.error(e);
                 }
 
             }
