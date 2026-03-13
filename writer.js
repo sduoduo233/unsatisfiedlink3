@@ -52,7 +52,7 @@ class Writer {
         const metadata = new TextEncoder().encode(JSON.stringify({
             "length": length,
             "original_filename": original_filename,
-            "mimetype": mimetype
+            "mimetype": mimetype === "" ? "application/octet-stream" : mimetype
         }));
 
         if (metadata.length > 0xffff) {

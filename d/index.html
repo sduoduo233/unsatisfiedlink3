@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Preview - End-to-end encrypted file transfer</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.8/css/bootstrap.min.css" integrity="sha512-2bBQCjcnw658Lho4nlXJcc6WkV/UxpE/sAokbXPxQNGqmNdQrWqtw26Ns9kFF/yG792pKR1Sx8/Y1Lf1XN4GKA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.13.1/font/bootstrap-icons.min.css" integrity="sha512-t7Few9xlddEmgd3oKZQahkNI4dS6l80+eGEzFQiqtyVYdvcSG2D3Iub77R20BdotfRPA9caaRkg1tyaJiPmO0g==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.8/js/bootstrap.bundle.min.js" integrity="sha512-HvOjJrdwNpDbkGJIG2ZNqDlVqMo77qbs4Me4cah0HoDrfhrbA+8SBlZn1KrvAQw7cILLPFJvdwIgphzQmMm+Pw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@videojs/html/cdn/video-minimal.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@videojs/html/cdn/video-minimal.css" />
+
+    <style>
+        .preview-card {
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        #preview {
+            height: 100%;
+            min-height: 0;
+            overflow: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #preview > img,
+        #preview > video,
+        #preview > iframe {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        #preview > iframe {
+            width: 100%;
+            height: 100%;
+            border: 0;
+        }
+    </style>
+
+</head>
+<body data-bs-theme="dark">
+    
+
+
+<div class="d-flex flex-column align-items-center justify-content-center vh-100 p-5">
+
+    <div class="d-flex flex-column" style="width: 1300px; max-width: 90vw;">
+        <h1 class="">Unsatisfiedlink.com</h1>
+        <p class="lead">End-to-end encrypted file transfer</p>
+    </div>
+
+    <div class="card">
+        <div class="card-body d-flex flex-row align-items-center gap-3" style="width: 1300px; max-width: 90vw;">
+            <div class="spinner-border text-primary" role="status" id="spinner">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <span id="fileicon" class="fs-1"></span>
+            <div class="d-flex flex-column">
+                <h5 id="filename" class="card-title mb-1"></h5>
+                <p id="filesize" class="card-text text-muted mb-0"></p>
+            </div>
+            <div class="flex-grow-1"></div>
+            <a class="btn btn-primary disabled" id="btn" target="_blank" aria-disabled="true">Download</a>
+        </div>
+    </div>
+
+    <div class="card mt-3 flex-grow-1 preview-card" style="width: 1300px; max-width: 90vw;">
+        <div class="card-body h-100" id="preview">
+            
+        </div>
+    </div>
+
+</div>
+
+<script src="/reader.js"></script>
+
+<script>
+$(async function() {
+
+    // serivce worker
+
+    if (!navigator.serviceWorker) {
+        alert("Your browser does not support service workers. Please update your browser.");
+        return;
+    }
+
+    try {
+        await navigator.serviceWorker.register("/sw.js", {
+            scope: "/"
+        })
+    } catch (e) {
+        console.error("Service worker registration failed:", e);
+        alert("Failed to register service worker. Please try again later.");
+        return;
+    }
+
+    const filename = location.search.substring(1);
+    const password = location.hash.substring(1);
+
+    if (!filename || !password) {
+        alert("Invalid URL. Filename or password is missing.");
+        return;
+    }
+
+    const swUrl = `/sw/${filename}#${password}`;
+
+    // fetch file metadata
+
+    try {
+
+        const r = new Reader();
+        await r.open(filename, password);
+        $("#fileicon").html(`<i class="bi ${getIconClass(r.mimetype)}"></i>`);
+        $("#filename").text(r.original_filename);
+        $("#filesize").text(formatBytes(r.length));
+        $("#spinner").remove();
+
+        if (r.mimetype.startsWith("image/")) {
+            
+            // image
+            $("#preview").html($("<img>").attr("src", swUrl).addClass("img-fluid"));
+
+        } else if (r.mimetype.startsWith("video/")) {
+
+            // video
+            $("#preview").html($("<video controls>").attr("src", swUrl).addClass("w-100"));
+
+        } else if (r.mimetype === "application/pdf" || r.mimetype === "application/x-pdf") {
+
+            // pdf
+            $("#preview").html($("<iframe>").attr("src", swUrl).addClass("w-100").addClass("h-100"));
+
+        } else if (r.mimetype.startsWith("audio/")) {
+
+            // audio
+            $("#preview").html($("<audio controls>").attr("src", swUrl).addClass("w-100"));
+
+        } else if (r.mimetype.match(/^text\/|^application\/(json|xml|javascript|typescript)/) || r.length < CHUNK_SIZE) {
+
+            // text file
+            const text = new TextDecoder().decode(await r.readChunk(0));
+
+            $("#preview").addClass("d-flex flex-column align-items-start");
+
+            // copy button
+            let timeout = null;
+            $("<button class=\"btn btn-secondary btn-sm\">Copy</button>").on("click", function() {
+                navigator.clipboard.writeText(text);
+                if (timeout) clearTimeout(timeout);
+                timeout = setTimeout(() => { $(this).text("Copy"); }, 2000);
+                $(this).text("Copied!");
+            }).appendTo($("#preview"));
+
+            $("<pre>").text(text).addClass("w-100 h-100 p-3").css("white-space", "pre").css("margin-bottom", "0px").appendTo($("#preview"));
+            
+        } else {
+
+            $("#preview").html($("<p>").text("Preview is unavailable for this file (" + r.mimetype + ").").addClass("text-muted"));
+        
+            }
+    } catch (e) {
+        console.error("Failed to load file metadata:", e);
+        $("#spinner").remove();
+        $("<span></span>").text("Failed to load file metadata").addClass("text-danger").appendTo($("#preview"));
+    } finally {
+        $("#btn").attr("href", swUrl);
+        $("#btn").removeClass("disabled");
+        $("#btn").attr("aria-disabled", "false");
+    }
+
+
+
+    function getIconClass(mimeType) {
+        if (!mimeType) return "bi-file-earmark";
+        if (mimeType === "application/pdf") return "bi-file-earmark-pdf";
+        if (mimeType.match(/^application\/(zip|x-zip|gzip|x-gzip|x-tar|x-bzip2|x-7z|x-rar|x-compress)/)) return "bi-file-earmark-zip";
+        if (mimeType.startsWith("video/") || mimeType.startsWith("audio/")) return "bi-file-earmark-play";
+        if (mimeType.startsWith("image/")) return "bi-file-earmark-image";
+        if (mimeType.startsWith("text/") || mimeType.match(/^application\/(json|xml|javascript|typescript)/)) return "bi-file-earmark-text";
+        return "bi-file-earmark";
+    }
+
+    function formatBytes(bytes) {
+        if (bytes === 0) return "0 Bytes";
+        const k = 1024;
+        const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+    }
+});
+</script>
+
+
+
+</body>
+</html>

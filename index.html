@@ -35,7 +35,7 @@
         <label class="mt-3 w-100">
             Auto Delete
             <select class="form-select" aria-label="Auto delete">
-                <option value="50y">50 Years</option>
+                <option value="50 Years">50 Years</option>
                 <option value="1y">1 Year</option>
                 <option value="1m">1 Month</option>
                 <option selected value="7d">7 Days</option>
@@ -168,7 +168,7 @@ $(function() {
             $(".progress-bar").css("width", "100%");
             $(".progress").attr("aria-valuenow", "100");
 
-            const url = "/download.html?" + w.filename + "#" + w.password;
+            const url = "/d?" + w.filename + "#" + w.password;
             console.log(url);
             location.href = url;
 
