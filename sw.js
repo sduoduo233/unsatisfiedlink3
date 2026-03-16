@@ -109,7 +109,7 @@ async function handleRequest(request) {
             headers: {
                 "Content-Length": r.length,
                 "Content-Type": r.mimetype,
-                // "Content-Disposition": "attachment; filename*=UTF-8''" + encodeURIComponent(r.original_filename),
+                "Content-Disposition": "attachment; filename*=UTF-8''" + encodeURIComponent(r.original_filename),
                 "Accept-Ranges": "bytes"
             }
         });
@@ -127,23 +127,28 @@ async function handleRequest(request) {
             return new Response("Range Not Satisfiable", { status: 416 });
         }
 
+        let startChunkIdx = Math.floor(start / CHUNK_SIZE);
+        // `end` is exclusive, so the last needed byte is at `end - 1`.
+        let endChunkIdx = Math.floor((end - 1) / CHUNK_SIZE);
+        let chunk = startChunkIdx;
+
         return new Response(new ReadableStream({
             async pull(controller) {
 
                 try  {
 
-                    let startChunkIdx = Math.floor(start / CHUNK_SIZE);
-                    let endChunkIdx = Math.floor(end / CHUNK_SIZE);
+                    const data = await r.readChunk(chunk);
+                    const chunkStart = chunk * CHUNK_SIZE;
+                    const chunkEnd = chunkStart + CHUNK_SIZE;
 
-                    for (let chunk = startChunkIdx; chunk <= endChunkIdx; chunk++) {
-                        const data = await r.readChunk(chunk);
-                        const chunkStart = chunk * CHUNK_SIZE;
-                        const chunkEnd = chunkStart + CHUNK_SIZE;
+                    const sliceStart = Math.max(start, chunkStart) - chunkStart;
+                    const sliceEnd = Math.min(end, chunkEnd) - chunkStart;
 
-                        const sliceStart = Math.max(start, chunkStart) - chunkStart;
-                        const sliceEnd = Math.min(end, chunkEnd) - chunkStart;
+                    controller.enqueue(data.slice(sliceStart, sliceEnd));
 
-                        controller.enqueue(data.slice(sliceStart, sliceEnd));
+                    chunk++;
+                    if (chunk > endChunkIdx) {
+                        controller.close();
                     }
 
                 } catch (e) {
@@ -157,7 +162,7 @@ async function handleRequest(request) {
             headers: {
                 "Content-Length": (end - start),
                 "Content-Type": r.mimetype,
-                // "Content-Disposition": "attachment; filename*=UTF-8''" + encodeURIComponent(r.original_filename),
+                "Content-Disposition": "attachment; filename*=UTF-8''" + encodeURIComponent(r.original_filename),
                 "Accept-Ranges": "bytes",
                 "Content-Range": "bytes " + start + "-" + (end - 1) + "/" + r.length,
             }

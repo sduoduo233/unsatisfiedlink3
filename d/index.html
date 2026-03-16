@@ -141,7 +141,7 @@ $(async function() {
             // audio
             $("#preview").html($("<audio controls>").attr("src", swUrl).addClass("w-100"));
 
-        } else if (r.mimetype.match(/^text\/|^application\/(json|xml|javascript|typescript)/) || r.length < CHUNK_SIZE) {
+        } else if (r.mimetype.match(/^text\/|^application\/(json|xml|javascript|typescript)/) && r.length < CHUNK_SIZE) {
 
             // text file
             const text = new TextDecoder().decode(await r.readChunk(0));
