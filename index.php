@@ -54,7 +54,7 @@ header("Content-Security-Policy: script-src 'nonce-{$nonce}'; img-src 'self'; fo
 
         <label class="mt-3 w-100">
             Auto Delete
-            <select class="form-select" aria-label="Auto delete">
+            <select class="form-select" aria-label="Auto delete" id="select">
                 <option value="50Y">50 Years</option>
                 <option value="1Y">1 Year</option>
                 <option value="1M">1 Month</option>
@@ -80,8 +80,10 @@ $(function() {
     /** @type {File | null} */
     let file = null;
     let is_file_upload = true;
+    let uploading = false;
 
     $("#nav-file").on("click", function() {
+        if (uploading) return;
         is_file_upload = true;
         $("#nav-file").addClass("active");
         $("#nav-text").removeClass("active");
@@ -90,6 +92,7 @@ $(function() {
     });
 
     $("#nav-text").on("click", function() {
+        if (uploading) return;
         is_file_upload = false;
         clearFile();
         $("#nav-text").addClass("active");
@@ -168,7 +171,6 @@ $(function() {
 
     // upload
 
-    let uploading = false;
 
     $("#btn").on("click", async function() {
         const text = new TextEncoder().encode($("#text-input").val().trim());
@@ -179,9 +181,12 @@ $(function() {
 
         // Hide controls and disable interactions
         $("#btn").hide();
-        $(".form-select").closest("label").hide();
+        $("#select").closest("label").hide();
         $("#input").prop("disabled", true);
-        $(".progress").show();
+        $("#progress").show();
+        $("#progress-bar").css("width", "0%");
+        $("#progress").attr("aria-valuenow", "0");
+        $("#text-input").prop("disabled", true);
 
         try {
             const totalSize = is_file_upload ? file.size : text.length;
@@ -189,9 +194,9 @@ $(function() {
 
             const w = new Writer();
             if (is_file_upload) {
-                await w.start(file.size, file.name, file.type, $(".form-select").val());
+                await w.start(file.size, file.name, file.type, $("#select").val());
             } else {
-                await w.start(text.length, new Date().toISOString() + ".txt", "text/plain", $(".form-select").val());
+                await w.start(text.length, new Date().toISOString() + ".txt", "text/plain", $("#select").val());
             }
 
             if (!is_file_upload) {
@@ -227,10 +232,11 @@ $(function() {
             alert("Error: upload failed");
             uploading = false;
             $("#btn").show();
-            $(".form-select").closest("label").show();
+            $("#select").closest("label").show();
             $("#input").prop("disabled", false);
             clearFile();
             $("#progress").hide();
+            $("#text-input").prop("disabled", false);
         }
     });
 })

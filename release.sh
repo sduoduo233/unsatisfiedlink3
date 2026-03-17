@@ -1,15 +1,5 @@
 #!/usr/bin/env bash
-set -e
 
-cd "$(dirname "$0")"
+rm release.zip || true
 
-OUT="${1:-release.zip}"
-zip -r "$OUT" . \
-  -x ".git/*" \
-  -x ".vscode/*" \
-  -x "uploads/*" \
-  -x "uploads_tmp/*" \
-  -x "db.sqlite" \
-  -x "*.zip"
-
-echo "Created $OUT"
+7z a release.zip index.php common.php cron.php startupload.php uploadpart.php endupload.php sw/index.php d/index.php reader.js sw.js writer.js readpart.php

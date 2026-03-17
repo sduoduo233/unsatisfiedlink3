@@ -4,7 +4,12 @@ $nonce = bin2hex(random_bytes(16));
 
 $sw_hash = base64_encode(hash("sha256", file_get_contents(__DIR__ . "/sw.js"), true));
 
-header("Content-Security-Policy: script-src 'nonce-{$nonce}'; img-src 'self'; font-src https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/; frame-ancestors 'none'; worker-src localhost:9008/sw.js");
+$worker_src = "localhost:9008/sw.js";
+if ($_SERVER["HTTP_HOST"] === "unsatisfiedlink.com") {
+    $worker_src = "https://unsatisfiedlink.com/sw.js";
+}
+
+header("Content-Security-Policy: script-src 'nonce-{$nonce}'; img-src 'self'; font-src https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/; frame-ancestors 'none'; worker-src {$worker_src}");
 
 
 ?>
@@ -16,6 +21,7 @@ header("Content-Security-Policy: script-src 'nonce-{$nonce}'; img-src 'self'; fo
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>File Preview - End-to-end encrypted file transfer</title>
     
+    <script nonce="<?php echo $nonce ?>" src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <link nonce="<?php echo $nonce ?>" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.8/css/bootstrap.min.css" integrity="sha512-2bBQCjcnw658Lho4nlXJcc6WkV/UxpE/sAokbXPxQNGqmNdQrWqtw26Ns9kFF/yG792pKR1Sx8/Y1Lf1XN4GKA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link nonce="<?php echo $nonce ?>" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.13.1/font/bootstrap-icons.min.css" integrity="sha512-t7Few9xlddEmgd3oKZQahkNI4dS6l80+eGEzFQiqtyVYdvcSG2D3Iub77R20BdotfRPA9caaRkg1tyaJiPmO0g==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <script nonce="<?php echo $nonce ?>" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
@@ -59,22 +65,28 @@ header("Content-Security-Policy: script-src 'nonce-{$nonce}'; img-src 'self'; fo
 <div class="d-flex flex-column align-items-center justify-content-center vh-100 p-5">
 
     <div class="d-flex flex-column" style="width: 1300px; max-width: 90vw;">
-        <h1 class="">Unsatisfiedlink.com</h1>
+        <a href="/" class="text-decoration-none">
+            <h1 class="">Unsatisfiedlink.com</h1>
+        </a>
         <p class="lead">End-to-end encrypted file transfer</p>
     </div>
 
     <div class="card">
-        <div class="card-body d-flex flex-row align-items-center gap-3" style="width: 1300px; max-width: 90vw;">
+        <div class="card-body d-flex flex-column gap-3" style="width: 1300px; max-width: 90vw;">
             <div class="spinner-border text-primary" role="status" id="spinner">
                 <span class="visually-hidden">Loading...</span>
             </div>
-            <span id="fileicon" class="fs-1"></span>
-            <div class="d-flex flex-column">
-                <h5 id="filename" class="card-title mb-1"></h5>
-                <p id="filesize" class="card-text text-muted mb-0"></p>
+            <div class="d-flex flex-row gap-3 align-items-center">
+                <span id="fileicon" class="fs-1"></span>
+                <div class="d-flex flex-column">
+                    <h5 id="filename" class="card-title mb-1"></h5>
+                    <p id="filesize" class="card-text text-muted mb-0"></p>
+                </div>
             </div>
-            <div class="flex-grow-1"></div>
-            <a class="btn btn-primary disabled" id="btn" target="_blank" aria-disabled="true">Download</a>
+            <div class="d-flex flex-row gap-2">
+                <a class="btn btn-primary disabled" id="btn" target="_blank" aria-disabled="true">Download</a>
+                <button class="btn btn-info disabled" id="qr-btn" aria-disabled="true">QR Code</button>
+            </div>
         </div>
     </div>
 
@@ -85,6 +97,20 @@ header("Content-Security-Policy: script-src 'nonce-{$nonce}'; img-src 'self'; fo
     </div>
 
 </div>
+
+    <div class="modal fade" id="qr-modal" tabindex="-1" aria-labelledby="qr-modal-label" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="qr-modal-label">Share QR Code</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body d-flex flex-column align-items-center gap-3">
+                    <div id="qr-code" class="p-2 bg-white"></div>
+                </div>
+            </div>
+        </div>
+    </div>
 
 <script src="/reader.js" nonce="<?php echo $nonce ?>"></script>
 
@@ -110,6 +136,7 @@ $(async function() {
 
     const filename = location.search.substring(1);
     const password = location.hash.substring(1);
+    const shareUrl = location.href;
 
     if (!filename || !password) {
         alert("Invalid URL. Filename or password is missing.");
@@ -117,6 +144,26 @@ $(async function() {
     }
 
     const swUrl = `/sw/${filename}#${password}`;
+    const qrModal = new bootstrap.Modal(document.getElementById("qr-modal"));
+
+    function showQrCode() {
+        const qrRoot = $("#qr-code");
+        qrRoot.empty();
+
+        new QRCode(qrRoot[0], {
+            text: shareUrl,
+            correctLevel: QRCode.CorrectLevel.M
+        });
+
+        qrModal.show();
+    }
+
+    $("#qr-btn").on("click", function() {
+        if ($(this).hasClass("disabled")) {
+            return;
+        }
+        showQrCode();
+    });
 
     // fetch file metadata
 
@@ -181,6 +228,11 @@ $(async function() {
         $("#btn").attr("href", swUrl);
         $("#btn").removeClass("disabled");
         $("#btn").attr("aria-disabled", "false");
+
+        $("#qr-btn").removeClass("disabled");
+        $("#qr-btn").attr("aria-disabled", "false");
+
+        
     }
 
 
