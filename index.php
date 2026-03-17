@@ -28,16 +28,28 @@ header("Content-Security-Policy: script-src 'nonce-{$nonce}'; img-src 'self'; fo
         <p class="lead">End-to-end encrypted file transfer</p>
 
 
+        <ul class="nav nav-tabs mb-3 w-100">
+            <li class="nav-item">
+                <a class="nav-link active" id="nav-file">File</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="nav-text">Text</a>
+            </li>
+        </ul>
 
-        <label>
-            <div class="card">
+        <label id="file-area">
+            <div class="card" id="file-card">
                 <div class="card-body d-flex flex-column align-items-center justify-content-center" style="width: 800px; height: 400px; max-width: 90vw; max-height: 40vh;">
-                    <span class="fs-1 text-muted" style="display: none;"><i class="bi bi-file-earmark"></i></span>
-                    <span class="fs-4 text-muted">Choose a file or drag it here</span>
+                    <span class="fs-1 text-muted" style="display: none;" id="file-icon"><i class="bi bi-file-earmark"></i></span>
+                    <span class="fs-4 text-muted" id="file-label">Choose a file or drag it here</span>
                 </div>
             </div>
             
             <input type="file" class="d-none" id="input" />
+        </label>
+
+        <label id="text-area" style="display: none;">
+            <textarea id="text-input" class="form-control border-1" placeholder="Enter text here" style="width: 800px; height: 400px; max-width: 90vw; max-height: 40vh;"></textarea>
         </label>
 
         <label class="mt-3 w-100">
@@ -55,8 +67,8 @@ header("Content-Security-Policy: script-src 'nonce-{$nonce}'; img-src 'self'; fo
 
         <button class="btn btn-primary mt-3" id="btn">Upload</button>
 
-        <div class="progress w-100 mt-3" role="progressbar" aria-label="Upload progress" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="display: none; height: 20px;">
-            <div class="progress-bar" style="width: 0%"></div>
+        <div class="progress w-100 mt-3" role="progressbar" aria-label="Upload progress" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="display: none; height: 20px;" id="progress">
+            <div class="progress-bar" style="width: 0%" id="progress-bar"></div>
         </div>
 
     </div>
@@ -67,10 +79,24 @@ header("Content-Security-Policy: script-src 'nonce-{$nonce}'; img-src 'self'; fo
 $(function() {
     /** @type {File | null} */
     let file = null;
+    let is_file_upload = true;
 
-    const $card = $(".card");
-    const $icon = $card.find("span").first();
-    const $label = $card.find("span").last();
+    $("#nav-file").on("click", function() {
+        is_file_upload = true;
+        $("#nav-file").addClass("active");
+        $("#nav-text").removeClass("active");
+        $("#file-area").show();
+        $("#text-area").hide();
+    });
+
+    $("#nav-text").on("click", function() {
+        is_file_upload = false;
+        clearFile();
+        $("#nav-text").addClass("active");
+        $("#nav-file").removeClass("active");
+        $("#file-area").hide();
+        $("#text-area").show();
+    });
 
     function getIconClass(mimeType) {
         if (!mimeType) return "bi-file-earmark";
@@ -84,14 +110,14 @@ $(function() {
 
     function setFile(f) {
         file = f;
-        $icon.show().removeClass("text-muted").find("i").attr("class", "bi " + getIconClass(f.type));
-        $label.removeClass("text-muted").text(f.name);
+        $("#file-icon").show().removeClass("text-muted").find("i").attr("class", "bi " + getIconClass(f.type));
+        $("#file-label").removeClass("text-muted").text(f.name);
     }
 
     function clearFile() {
         file = null;
-        $icon.hide().addClass("text-muted");
-        $label.addClass("text-muted").text("Choose a file or drag it here");
+        $("#file-icon").hide().addClass("text-muted");
+        $("#file-label").addClass("text-muted").text("Choose a file or drag it here");
     }
 
     $("#input").on("change", function() {
@@ -116,7 +142,7 @@ $(function() {
         e.preventDefault();
         if (uploading) return;
         dragCounter++;
-        $card.addClass("border border-primary border-3");
+        $("#file-card").addClass("border border-primary border-3");
     });
 
     $(window).on("dragleave", function(e) {
@@ -124,7 +150,7 @@ $(function() {
         if (uploading) return;
         dragCounter--;
         if (dragCounter === 0) {
-            $card.removeClass("border border-primary border-3");
+            $("#file-card").removeClass("border border-primary border-3");
         }
     });
 
@@ -133,7 +159,7 @@ $(function() {
         e.stopPropagation();
         if (uploading) return;
         dragCounter = 0;
-        $card.removeClass("border border-primary border-3");
+        $("#file-card").removeClass("border border-primary border-3");
         const dt = e.originalEvent.dataTransfer;
         if (dt && dt.files && dt.files.length > 0) {
             setFile(dt.files[0]);
@@ -145,7 +171,10 @@ $(function() {
     let uploading = false;
 
     $("#btn").on("click", async function() {
-        if (!file || uploading) return;
+        const text = new TextEncoder().encode($("#text-input").val().trim());
+        if (uploading) return;
+        if (!file && is_file_upload) return;
+        if (!is_file_upload && text.length === 0) return;
         uploading = true;
 
         // Hide controls and disable interactions
@@ -155,25 +184,39 @@ $(function() {
         $(".progress").show();
 
         try {
-            const totalSize = file.size;
+            const totalSize = is_file_upload ? file.size : text.length;
             let uploaded = 0;
 
             const w = new Writer();
-            await w.start(file.size, file.name, file.type, $(".form-select").val());
+            if (is_file_upload) {
+                await w.start(file.size, file.name, file.type, $(".form-select").val());
+            } else {
+                await w.start(text.length, new Date().toISOString() + ".txt", "text/plain", $(".form-select").val());
+            }
 
-            for (let i = 0; i < file.size; i += 4096) {
-                const end = Math.min(file.size, i + 4096);
-                const data = await file.slice(i, end).bytes();
-                await w.write(data);
-                uploaded = end;
-                const pct = Math.round((uploaded / totalSize) * 100);
-                $(".progress-bar").css("width", pct + "%");
-                $(".progress").attr("aria-valuenow", pct);
+            if (!is_file_upload) {
+
+                await w.write(text);
+                $("#progress-bar").css("width", "100%");
+                $("#progress").attr("aria-valuenow", "100");
+
+            } else {
+
+                for (let i = 0; i < file.size; i += 4096) {
+                    const end = Math.min(file.size, i + 4096);
+                    const data = await file.slice(i, end).bytes();
+                    await w.write(data);
+                    uploaded = end;
+                    const pct = Math.round((uploaded / totalSize) * 100);
+                    $("#progress-bar").css("width", pct + "%");
+                    $("#progress").attr("aria-valuenow", pct);
+                }
+
             }
 
             await w.close();
-            $(".progress-bar").css("width", "100%");
-            $(".progress").attr("aria-valuenow", "100");
+            $("#progress-bar").css("width", "100%");
+            $("#progress").attr("aria-valuenow", "100");
 
             const url = "/d?" + w.filename + "#" + w.password;
             console.log(url);
@@ -187,7 +230,7 @@ $(function() {
             $(".form-select").closest("label").show();
             $("#input").prop("disabled", false);
             clearFile();
-            $(".progress").hide();
+            $("#progress").hide();
         }
     });
 })
