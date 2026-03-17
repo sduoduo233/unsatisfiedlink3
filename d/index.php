@@ -1,3 +1,14 @@
+<?php
+
+$nonce = bin2hex(random_bytes(16));
+
+$sw_hash = base64_encode(hash("sha256", file_get_contents(__DIR__ . "/sw.js"), true));
+
+header("Content-Security-Policy: script-src 'nonce-{$nonce}'; img-src 'self'; font-src https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/; frame-ancestors 'none'; worker-src localhost:9008/sw.js");
+
+
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,13 +16,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>File Preview - End-to-end encrypted file transfer</title>
     
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.8/css/bootstrap.min.css" integrity="sha512-2bBQCjcnw658Lho4nlXJcc6WkV/UxpE/sAokbXPxQNGqmNdQrWqtw26Ns9kFF/yG792pKR1Sx8/Y1Lf1XN4GKA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.13.1/font/bootstrap-icons.min.css" integrity="sha512-t7Few9xlddEmgd3oKZQahkNI4dS6l80+eGEzFQiqtyVYdvcSG2D3Iub77R20BdotfRPA9caaRkg1tyaJiPmO0g==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.8/js/bootstrap.bundle.min.js" integrity="sha512-HvOjJrdwNpDbkGJIG2ZNqDlVqMo77qbs4Me4cah0HoDrfhrbA+8SBlZn1KrvAQw7cILLPFJvdwIgphzQmMm+Pw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-
-    <script type="module" src="https://cdn.jsdelivr.net/npm/@videojs/html/cdn/video-minimal.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@videojs/html/cdn/video-minimal.css" />
+    <link nonce="<?php echo $nonce ?>" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.8/css/bootstrap.min.css" integrity="sha512-2bBQCjcnw658Lho4nlXJcc6WkV/UxpE/sAokbXPxQNGqmNdQrWqtw26Ns9kFF/yG792pKR1Sx8/Y1Lf1XN4GKA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link nonce="<?php echo $nonce ?>" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.13.1/font/bootstrap-icons.min.css" integrity="sha512-t7Few9xlddEmgd3oKZQahkNI4dS6l80+eGEzFQiqtyVYdvcSG2D3Iub77R20BdotfRPA9caaRkg1tyaJiPmO0g==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script nonce="<?php echo $nonce ?>" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script nonce="<?php echo $nonce ?>" src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.8/js/bootstrap.bundle.min.js" integrity="sha512-HvOjJrdwNpDbkGJIG2ZNqDlVqMo77qbs4Me4cah0HoDrfhrbA+8SBlZn1KrvAQw7cILLPFJvdwIgphzQmMm+Pw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
     <style>
         .preview-card {
@@ -78,9 +86,9 @@
 
 </div>
 
-<script src="/reader.js"></script>
+<script src="/reader.js" nonce="<?php echo $nonce ?>"></script>
 
-<script>
+<script nonce="<?php echo $nonce ?>">
 $(async function() {
 
     // serivce worker
@@ -134,7 +142,7 @@ $(async function() {
         } else if (r.mimetype === "application/pdf" || r.mimetype === "application/x-pdf") {
 
             // pdf
-            $("#preview").html($("<iframe>").attr("src", swUrl).addClass("w-100").addClass("h-100"));
+            $("#preview").html($("<iframe>").attr("src", `/sw/${filename}?preview#${password}`).addClass("w-100").addClass("h-100"));
 
         } else if (r.mimetype.startsWith("audio/")) {
 

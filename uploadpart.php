@@ -21,7 +21,7 @@ $file = $_FILES["file"];
 
 if ($file["error"] !== UPLOAD_ERR_OK || empty($file["tmp_name"])) {
     http_response_code(400);
-    echo json_encode(["error" => "File upload error"]);
+    echo json_encode(["error" => "File upload error " . $file["error"]]);
     exit;
 }
 

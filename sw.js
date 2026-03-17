@@ -39,8 +39,14 @@ function parseRange(request, length) {
 async function handleRequest(request) {
     const url = new URL(request.url);
 
-    const filename = url.pathname.substring(4);
-    const password = url.hash.substring(1);
+    let filename = url.pathname.substring(4);
+    let password = url.hash.substring(1);
+    const is_preview = url.search === "?preview";
+
+    if (filename.includes("%23")) {
+        filename = url.pathname.substring(4).split("%23")[0];
+        password = url.pathname.substring(4).split("%23")[1];
+    }
 
     if (!filename || !password) {
         return new Response("Bad request", { status: 400 });
@@ -54,25 +60,25 @@ async function handleRequest(request) {
     // HEAD request
 
     if (request.method === "HEAD") {
+        let headers = {
+            "Content-Type": r.mimetype,
+            "Accept-Ranges": "bytes"
+        };
+        if (!is_preview) {
+            headers["Content-Disposition"] = "attachment; filename*=UTF-8''" + encodeURIComponent(r.original_filename);
+        }
         if (range) {
+            headers["Content-Length"] = (range.end - range.start + 1);
+            headers["Content-Range"] = "bytes " + range.start + "-" + range.end + "/" + r.length;
             return new Response(null, {
                 status: 206,
-                headers: {
-                    "Content-Length": range.end - range.start + 1,
-                    "Content-Type": r.mimetype,
-                    "Content-Disposition": "attachment; filename*=UTF-8''" + encodeURIComponent(r.original_filename),
-                    "Content-Range": "bytes " + range.start + "-" + range.end + "/" + r.length,
-                }
+                headers: headers
             });
         } else {
+            headers["Content-Length"] = r.length;
             return new Response(null, {
                 status: 200,
-                headers: {
-                    "Content-Length": r.length,
-                    "Content-Type": r.mimetype,
-                    "Content-Disposition": "attachment; filename*=UTF-8''" + encodeURIComponent(r.original_filename),
-                    "Accept-Ranges": "bytes"
-                }
+                headers: headers
             });
         }
     }
@@ -87,6 +93,15 @@ async function handleRequest(request) {
         // read all
 
         let chunk = 0;
+
+        let headers = {
+            "Content-Length": r.length,
+            "Content-Type": r.mimetype,
+            "Accept-Ranges": "bytes"
+        };
+        if (!is_preview) {
+            headers["Content-Disposition"] = "attachment; filename*=UTF-8''" + encodeURIComponent(r.original_filename);
+        }
 
         return new Response(new ReadableStream({
             async pull(controller) {
@@ -106,12 +121,7 @@ async function handleRequest(request) {
             }
         }), {
             status: 200,
-            headers: {
-                "Content-Length": r.length,
-                "Content-Type": r.mimetype,
-                "Content-Disposition": "attachment; filename*=UTF-8''" + encodeURIComponent(r.original_filename),
-                "Accept-Ranges": "bytes"
-            }
+            headers: headers
         });
 
     } else {
@@ -131,6 +141,16 @@ async function handleRequest(request) {
         // `end` is exclusive, so the last needed byte is at `end - 1`.
         let endChunkIdx = Math.floor((end - 1) / CHUNK_SIZE);
         let chunk = startChunkIdx;
+
+        let headers = {
+            "Content-Length": (end - start),
+            "Content-Type": r.mimetype,
+            "Content-Range": "bytes " + start + "-" + (end - 1) + "/" + r.length,
+            "Accept-Ranges": "bytes"
+        };
+        if (!is_preview) {
+            headers["Content-Disposition"] = "attachment; filename*=UTF-8''" + encodeURIComponent(r.original_filename);
+        }
 
         return new Response(new ReadableStream({
             async pull(controller) {
@@ -159,13 +179,7 @@ async function handleRequest(request) {
             }
         }), {
             status: 206,
-            headers: {
-                "Content-Length": (end - start),
-                "Content-Type": r.mimetype,
-                "Content-Disposition": "attachment; filename*=UTF-8''" + encodeURIComponent(r.original_filename),
-                "Accept-Ranges": "bytes",
-                "Content-Range": "bytes " + start + "-" + (end - 1) + "/" + r.length,
-            }
+            headers: headers
         });
     }
 
