@@ -39,16 +39,11 @@ function parseRange(request, length) {
 async function handleRequest(request) {
     const url = new URL(request.url);
 
-    let filename = url.pathname.substring(4);
-    let password = url.hash.substring(1);
+    const filename = url.pathname.substring(4);
+    const password = url.hash.substring(1);
     const is_preview = url.search === "?preview";
 
-    if (filename.includes("%23")) {
-        filename = url.pathname.substring(4).split("%23")[0];
-        password = url.pathname.substring(4).split("%23")[1];
-    }
-
-    if (!filename || !password) {
+    if (!filename || !password || !/^[a-zA-Z0-9]+$/.test(filename)) {
         return new Response("Bad request", { status: 400 });
     }
 
