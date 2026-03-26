@@ -34,7 +34,7 @@ class Reader {
         const metadataPlaintext = new TextDecoder().decode(metadataBuffer);
         const metadata = JSON.parse(metadataPlaintext);
 
-        if (typeof metadata["length"] !== "number" || typeof metadata["original_filename"] !== "string" || typeof metadata["mimetype"] !== "string" || !(/^[a-z]+\/[a-z\-\+]+$/.test(metadata["mimetype"]))) {
+        if (typeof metadata["length"] !== "number" || typeof metadata["original_filename"] !== "string" || typeof metadata["mimetype"] !== "string" || !(/^[a-z]+\/[a-z\-\+\.0-9]+$/.test(metadata["mimetype"]))) {
             console.error("invalid metadata", metadataPlaintext);
             throw new Error("invalid metadata");
         }
