@@ -179,7 +179,7 @@ class Writer {
     }
 
     randomString(length) {
-        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+        const chars = "ABCDEFHKLMNPQRSTUVWXYZabcdefhikmnopqrstuvwxyz23456789";
         let s = "";
         const array = new Uint32Array(length);
         crypto.getRandomValues(array);
